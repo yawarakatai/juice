@@ -47,7 +47,8 @@ fn main() {
         let capacity: u32 = read_sysfs(format!("{}/{}", path, "capacity"))
             .and_then(|s| s.parse().ok())
             .unwrap_or(0);
-        let status = read_sysfs(format!("{}/{}", path, "status")).unwrap();
+        let status =
+            read_sysfs(format!("{}/{}", path, "status")).unwrap_or_else(|| "Unknown".to_string());
         let charging_symbol = match status.as_str() {
             "Charging" => "↑",
             "Discharging" => "↓",
@@ -61,9 +62,16 @@ fn main() {
             .and_then(|s| s.parse().ok())
             .unwrap_or(0.0);
 
-        let remaining_hours = energy_now / power_now;
-        let h = remaining_hours as u32;
-        let m = (remaining_hours.fract() * 60.0) as u32;
+        // Avoid zero division
+        let (h, m) = if power_now > 0.0 {
+            let remaining_hours = energy_now / power_now;
+            (
+                remaining_hours as u32,
+                (remaining_hours.fract() * 60.0) as u32,
+            )
+        } else {
+            (0, 0)
+        };
 
         let bar = progress_bar(capacity, 10);
 
