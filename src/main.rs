@@ -108,45 +108,27 @@ fn main() {
     }
 
     for path in battery_paths {
-        let battery_info = get_battery_info(&path);
-        let battery_name: &str = Path::new(&path)
-            .file_name()
-            .and_then(|s| s.to_str())
-            .unwrap_or("unknown");
-        let capacity: u32 = read_sysfs(format!("{}/{}", path, "capacity"))
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(0);
-        let status =
-            read_sysfs(format!("{}/{}", path, "status")).unwrap_or_else(|| "Unknown".to_string());
-        let charging_symbol = match status.as_str() {
+        let battery_info = get_battery_info(&path).unwrap();
+
+        let charging_symbol = match battery_info.status.as_str() {
             "Charging" => "↑".yellow(),
             "Discharging" => "↓".cyan(),
             _ => "?".red(),
         };
-        let power_now: f32 = read_sysfs(format!("{}/{}", path, "power_now"))
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(0.0);
-        let power_watt = power_now / 1e6;
-        let energy_now: f32 = read_sysfs(format!("{}/{}", path, "energy_now"))
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(0.0);
-        let energy_full: f32 = read_sysfs(format!("{}/{}", path, "energy_full"))
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(0.0);
 
-        let (h, m) = if status == "Charging" {
-            calc_remaining(energy_full - energy_now, power_now) // Time to fully charge
+        let (h, m) = if battery_info.status == "Charging" {
+            calc_remaining(battery_info.energy_full- battery_info.energy_now, battery_info.power_now) // Time to fully charge
         } else {
-            calc_remaining(energy_now, power_now) // Time to complete discharge
+            calc_remaining(battery_info.energy_now, battery_info.power_now) // Time to complete discharge
         };
 
         let time = format!("{:2}h{:2}m", h, m);
 
-        let bar = progress_bar(capacity, 10);
+        let bar = progress_bar(battery_info.capacity, 10);
 
         println!(
             "{} {} {:3}% {:2.1}W {} {}",
-            battery_name, bar, capacity, power_watt, charging_symbol, time
+            battery_info.name, bar, battery_info.capacity, battery_info.power_now, charging_symbol, time
         );
     }
 }
