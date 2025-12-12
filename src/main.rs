@@ -31,6 +31,15 @@ fn progress_bar(percent: u32, width: u32) -> String {
     format!("{}{}", "█".repeat(filled), "░".repeat(empty))
 }
 
+fn calc_remaining(energy: f32, power: f32) -> (u32, u32) {
+    if power <= 0.0 {
+        return (0, 0);
+    }
+    let hours = energy / power;
+    let minutes = hours.fract() * 60.0;
+    (hours as u32, minutes as u32)
+}
+
 fn main() {
     let battery_paths = find_batteries();
 
@@ -56,28 +65,29 @@ fn main() {
         };
         let power_now: f32 = read_sysfs(format!("{}/{}", path, "power_now"))
             .and_then(|s| s.parse().ok())
-            .unwrap_or(0f32);
+            .unwrap_or(0.0);
         let power_watt = power_now / 1e6;
         let energy_now: f32 = read_sysfs(format!("{}/{}", path, "energy_now"))
             .and_then(|s| s.parse().ok())
             .unwrap_or(0.0);
+        let energy_full: f32 = read_sysfs(format!("{}/{}", path, "energy_full"))
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(0.0);
 
         // Avoid zero division
-        let (h, m) = if power_now > 0.0 {
-            let remaining_hours = energy_now / power_now;
-            (
-                remaining_hours as u32,
-                (remaining_hours.fract() * 60.0) as u32,
-            )
+        let (h, m) = if status == "Charging" {
+            calc_remaining(energy_now, power_now)
         } else {
-            (0, 0)
+            calc_remaining(energy_full - energy_now, power_now)
         };
+
+        let time = format!("{:2}h{:2}m", h, m);
 
         let bar = progress_bar(capacity, 10);
 
         println!(
-            "{} {} {:3}% {} {:2.1}W {:}h{:2}m",
-            battery_name, bar, capacity, charging_symbol, power_watt, h, m
+            "{} {} {:3}% {:2.1}W {} {}",
+            battery_name, bar, capacity, power_watt, charging_symbol, time
         );
     }
 }
