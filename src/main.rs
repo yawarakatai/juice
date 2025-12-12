@@ -12,6 +12,15 @@ struct Args {
     verbose: bool,
 }
 
+struct BatteryInfo {
+    name: String,
+    capacity: u32,
+    status: String,
+    power_watt: f32,
+    energy_now: f32,
+    energy_full: f32,
+}
+
 fn read_sysfs(path: impl AsRef<Path>) -> Option<String> {
     fs::read_to_string(path.as_ref())
         .ok()
