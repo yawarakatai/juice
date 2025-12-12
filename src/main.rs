@@ -16,7 +16,7 @@ struct BatteryInfo {
     name: String,
     capacity: u32,
     status: String,
-    power_watt: f32,
+    power_now: f32,
     energy_now: f32,
     energy_full: f32,
 }
@@ -40,6 +40,35 @@ fn find_batteries() -> Vec<String> {
         }
     }
     batteries
+}
+
+fn get_battery_info(path: &str) -> Option<BatteryInfo>{
+    let name: String = Path::new(&path)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("Unknown")
+        .to_string();
+
+    let capacity: u32 = read_sysfs(format!("{}/{}", path, "capacity"))
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0);
+
+    let status =
+        read_sysfs(format!("{}/{}", path, "status")).unwrap_or_else(|| "Unknown".to_string());
+
+    let power_now: f32 = read_sysfs(format!("{}/{}", path, "power_now"))
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0.0)* 1e-6;
+
+    let energy_now: f32 = read_sysfs(format!("{}/{}", path, "energy_now"))
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0.0)* 1e-6;
+
+    let energy_full: f32 = read_sysfs(format!("{}/{}", path, "energy_full"))
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0.0)* 1e-6;
+
+    Some(BatteryInfo {name , capacity, status, power_now, energy_now, energy_full})
 }
 
 fn progress_bar(percent: u32, width: u32) -> ColoredString {
@@ -79,6 +108,7 @@ fn main() {
     }
 
     for path in battery_paths {
+        let battery_info = get_battery_info(&path);
         let battery_name: &str = Path::new(&path)
             .file_name()
             .and_then(|s| s.to_str())
