@@ -127,7 +127,7 @@ fn main() {
         let bar = progress_bar(battery_info.capacity, 10);
 
         println!(
-            "{} {} {:3}% {:2.1}W {} {}",
+            "{} {} {:}% {:.1}W {} {}",
             battery_info.name, bar, battery_info.capacity, battery_info.power_now, charging_symbol, time
         );
     }
