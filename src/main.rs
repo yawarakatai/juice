@@ -56,6 +56,12 @@ fn calc_remaining(energy: f32, power: f32) -> (u32, u32) {
 }
 
 fn main() {
+    let args = Args::parse();
+
+    if args.verbose {
+        todo!();
+    }
+
     let battery_paths = find_batteries();
 
     if battery_paths.is_empty() {
@@ -89,11 +95,10 @@ fn main() {
             .and_then(|s| s.parse().ok())
             .unwrap_or(0.0);
 
-        // Avoid zero division
         let (h, m) = if status == "Charging" {
-            calc_remaining(energy_now, power_now)
+            calc_remaining(energy_full - energy_now, power_now) // Time to fully charge
         } else {
-            calc_remaining(energy_full - energy_now, power_now)
+            calc_remaining(energy_now, power_now) // Time to complete discharge
         };
 
         let time = format!("{:2}h{:2}m", h, m);
