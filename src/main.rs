@@ -1,5 +1,16 @@
+use colored::*;
 use std::fs;
 use std::path::Path;
+use clap::Parser;
+
+#[derive(Parser)]
+#[command(name = "juice")]
+#[command(about = "Battery status for Linux")]
+struct Args {
+    // Show detailed information
+    #[arg(short, long)]   
+    verbose: bool,
+}
 
 fn read_sysfs(path: impl AsRef<Path>) -> Option<String> {
     fs::read_to_string(path.as_ref())
@@ -14,21 +25,25 @@ fn find_batteries() -> Vec<String> {
     if let Ok(entries) = fs::read_dir(power_supply) {
         for entry in entries.flatten() {
             let type_path = entry.path().join("type");
-            if let Ok(t) = fs::read_to_string(&type_path) {
-                if t.trim() == "Battery" {
-                    batteries.push(entry.path().to_string_lossy().to_string());
-                }
+            if let Ok(t) = fs::read_to_string(&type_path) && t.trim() == "Battery" {
+                batteries.push(entry.path().to_string_lossy().to_string());
             }
         }
     }
     batteries
 }
 
-fn progress_bar(percent: u32, width: u32) -> String {
+fn progress_bar(percent: u32, width: u32) -> ColoredString {
     let filled = (percent * width / 100) as usize;
     let empty = (width as usize) - filled;
 
-    format!("{}{}", "█".repeat(filled), "░".repeat(empty))
+    let bar = format!("{}{}", "█".repeat(filled), "░".repeat(empty));
+
+    match percent {
+        0..=20 => bar.red(),
+        21..=50 => bar.yellow(),
+        _ => bar.green(),
+    }
 }
 
 fn calc_remaining(energy: f32, power: f32) -> (u32, u32) {
@@ -59,9 +74,9 @@ fn main() {
         let status =
             read_sysfs(format!("{}/{}", path, "status")).unwrap_or_else(|| "Unknown".to_string());
         let charging_symbol = match status.as_str() {
-            "Charging" => "↑",
-            "Discharging" => "↓",
-            _ => "?",
+            "Charging" => "↑".yellow(),
+            "Discharging" => "↓".cyan(),
+            _ => "?".red(),
         };
         let power_now: f32 = read_sysfs(format!("{}/{}", path, "power_now"))
             .and_then(|s| s.parse().ok())
