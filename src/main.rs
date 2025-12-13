@@ -51,20 +51,19 @@ fn find_batteries() -> Vec<String> {
 }
 
 fn get_battery_info(path: &str) -> BatteryInfo {
-    let name: String = Path::new(&path)
+    let name: String = Path::new(path)
         .file_name()
         .and_then(|s| s.to_str())
         .unwrap_or("Unknown")
         .to_string();
 
-    let status =
-        read_sysfs(format!("{}/{}", path, "status")).unwrap_or_else(|| "Unknown".to_string());
+    let status = read_sysfs(format!("{}/status", path)).unwrap_or_else(|| "Unknown".to_string());
 
     let capacity: Option<u32> =
-        read_sysfs(format!("{}/{}", path, "capacity")).and_then(|s| s.parse().ok());
+        read_sysfs(format!("{}/capacity", path)).and_then(|s| s.parse().ok());
 
     let cycle_count: Option<u32> =
-        read_sysfs(format!("{}/{}", path, "cycle_count")).and_then(|s| s.parse().ok());
+        read_sysfs(format!("{}/cycle_count", path)).and_then(|s| s.parse().ok());
 
     let power_now: Option<f32> = read_sysfs(format!("{}/power_now", path))
         .and_then(|s| s.parse::<f32>().ok())
