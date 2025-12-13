@@ -1,14 +1,14 @@
+use clap::Parser;
 use colored::*;
 use std::fs;
 use std::path::Path;
-use clap::Parser;
 
 #[derive(Parser)]
 #[command(name = "juice")]
 #[command(about = "Battery status for Linux")]
 struct Args {
     // Show detailed information
-    #[arg(short, long)]   
+    #[arg(short, long)]
     verbose: bool,
 }
 
@@ -37,30 +37,36 @@ fn find_batteries() -> Vec<String> {
     if let Ok(entries) = fs::read_dir(power_supply) {
         for entry in entries.flatten() {
             let type_path = entry.path().join("type");
-            if let Ok(t) = fs::read_to_string(&type_path) && t.trim() == "Battery" {
-                batteries.push(entry.path().to_string_lossy().to_string());
+
+            // This code can be shorter with if, but it obstructs rustfmt
+            match fs::read_to_string(&type_path) {
+                Ok(t) if t.trim() == "Battery" => {
+                    batteries.push(entry.path().to_string_lossy().to_string());
+                }
+                _ => {}
             }
         }
     }
     batteries
 }
 
-fn get_battery_info(path: &str) -> Option<BatteryInfo>{
+fn get_battery_info(path: &str) -> BatteryInfo {
     let name: String = Path::new(&path)
         .file_name()
         .and_then(|s| s.to_str())
         .unwrap_or("Unknown")
         .to_string();
 
-    let status = read_sysfs(format!("{}/{}", path, "status")).unwrap_or_else(|| "Unknown".to_string());
+    let status =
+        read_sysfs(format!("{}/{}", path, "status")).unwrap_or_else(|| "Unknown".to_string());
 
-    let capacity: Option<u32> = read_sysfs(format!("{}/{}", path, "capacity"))
-        .and_then(|s| s.parse().ok());
+    let capacity: Option<u32> =
+        read_sysfs(format!("{}/{}", path, "capacity")).and_then(|s| s.parse().ok());
 
-    let cycle_count: Option<u32> = read_sysfs(format!("{}/{}", path, "cycle_count"))
-        .and_then(|s| s.parse().ok());
+    let cycle_count: Option<u32> =
+        read_sysfs(format!("{}/{}", path, "cycle_count")).and_then(|s| s.parse().ok());
 
-    let power_now: Option<f32>= read_sysfs(format!("{}/{}", path, "power_now"))
+    let power_now: Option<f32> = read_sysfs(format!("{}/{}", path, "power_now"))
         .and_then(|s| s.parse::<f32>().ok())
         .map(|p| p * 1e-6);
 
@@ -76,10 +82,19 @@ fn get_battery_info(path: &str) -> Option<BatteryInfo>{
         .and_then(|s| s.parse::<f32>().ok())
         .map(|p| p * 1e-6);
 
-    let technology: Option<String>=  read_sysfs(format!("{}/{}", path, "technology"));
+    let technology: Option<String> = read_sysfs(format!("{}/{}", path, "technology"));
 
-
-    Some(BatteryInfo {name , status,capacity, cycle_count, power_now, energy_now, energy_full, energy_full_design, technology})
+    BatteryInfo {
+        name,
+        status,
+        capacity,
+        cycle_count,
+        power_now,
+        energy_now,
+        energy_full,
+        energy_full_design,
+        technology,
+    }
 }
 
 fn progress_bar(percent: u32, width: u32) -> ColoredString {
@@ -104,11 +119,11 @@ fn calc_remaining(energy: f32, power: f32) -> (u32, u32) {
     (hours as u32, minutes as u32)
 }
 
-fn calc_time(info: &BatteryInfo) -> Option<(u32,u32)>{
+fn calc_time(info: &BatteryInfo) -> Option<(u32, u32)> {
     let power = info.power_now?;
     let energy_now = info.energy_now?;
 
-    let energy = if info.status == "Charging"{
+    let energy = if info.status == "Charging" {
         info.energy_full? - energy_now
     } else {
         energy_now
@@ -132,7 +147,22 @@ fn main() {
     }
 
     for path in battery_paths {
-        let battery_info = get_battery_info(&path).unwrap();
+        let battery_info = get_battery_info(&path);
+
+        let bar = battery_info
+            .capacity
+            .map(|n| progress_bar(n, 10))
+            .unwrap_or("None".to_string().white());
+
+        let capacity_str = battery_info
+            .capacity
+            .map(|n| format!("{:3}%", n))
+            .unwrap_or_else(|| "  --%".to_string());
+
+        let power_str = battery_info
+            .power_now
+            .map(|n| format!("{:5.1}W", n))
+            .unwrap_or_else(|| "  --W".to_string());
 
         let charging_symbol = match battery_info.status.as_str() {
             "Charging" => "↑".yellow(),
@@ -141,13 +171,13 @@ fn main() {
             _ => "?".white(),
         };
 
-        let time = calc_time(&battery_info).map(|(h,m)| format!("{:2}h{:2}m", h, m)).unwrap_or("--:--".to_string());
-
-        let bar = battery_info.capacity.map(|n| progress_bar(n, 10)).unwrap_or("None".to_string().white());
+        let time = calc_time(&battery_info)
+            .map(|(h, m)| format!("{:2}h{:02}m", h, m))
+            .unwrap_or(" --:--".to_string());
 
         println!(
             "{} {} {} {} {} {}",
-            battery_info.name, bar, battery_info.capacity.map(|n| format!("{}%",n)).unwrap_or("Unknown".to_string()), battery_info.power_now.map(|n| format!("{:.1}W",n)).unwrap_or("Unknown".to_string()), charging_symbol, time
+            battery_info.name, bar, capacity_str, power_str, charging_symbol, time
         );
     }
 }
