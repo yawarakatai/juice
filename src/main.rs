@@ -9,7 +9,7 @@ use chrono::{Local, TimeZone};
 use clap::{Parser, Subcommand};
 use colored::*;
 use db::{default_db_path, Database};
-use std::{error::Error, os::unix::fs::MetadataExt};
+use std::error::Error;
 
 #[derive(Parser)]
 #[command(version, about)]
