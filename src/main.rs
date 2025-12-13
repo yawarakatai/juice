@@ -5,10 +5,11 @@ mod db;
 use battery::{
     calc_health, find_batteries, get_battery_info, progress_bar, BatteryInfo, BatteryStatus,
 };
+use chrono::{Local, TimeZone};
 use clap::{Parser, Subcommand};
 use colored::*;
 use db::{default_db_path, Database};
-use std::error::Error;
+use std::{error::Error, os::unix::fs::MetadataExt};
 
 #[derive(Parser)]
 #[command(version, about)]
@@ -75,6 +76,42 @@ impl BatteryInfo {
         self.calc_time()
             .map(|(h, m)| format!("{:2}h{:02}m", h, m))
             .unwrap_or(" --:--".to_string())
+    }
+}
+
+fn format_size(bytes: u64) -> String {
+    const KB: u64 = 1024;
+    const MB: u64 = KB * 1024;
+
+    if bytes >= MB {
+        format!("{:.1} MB", bytes as f64 / MB as f64)
+    } else if bytes >= KB {
+        format!("{:.1} KB", bytes as f64 / KB as f64)
+    } else {
+        format!("{} B", bytes)
+    }
+}
+
+fn format_timestamp(unix_timestamp: i64) -> String {
+    Local
+        .timestamp_opt(unix_timestamp, 0)
+        .single()
+        .map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string())
+        .unwrap_or_else(|| "Invalid".to_string())
+}
+
+fn format_duration(first: i64, last: i64) -> String {
+    let secs = last - first;
+    let days = secs / 86400;
+    let hours = (secs % 86400) / 3600;
+    let mins = (secs % 3600) / 60;
+
+    if days > 0 {
+        format!("{} days {} hours", days, hours)
+    } else if hours > 0 {
+        format!("{} hours {} mins", hours, mins)
+    } else {
+        format!("{} mins", mins)
     }
 }
 
@@ -164,17 +201,30 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
         Some(Commands::Status) => {
             let db_path = default_db_path();
+            let file_size = std::fs::metadata(&db_path).map(|m| m.len()).unwrap_or(0);
+
             println!("Database: {}", db_path.display());
+            println!("Size:     {}", format_size(file_size));
 
             match Database::open(&db_path) {
                 Ok(db) => {
-                    db.init_scheme().expect("Failed to init schema");
+                    db.init_scheme()?;
                     let count = db.count_readings().unwrap_or(0);
-                    println!("Total readings: {}", count);
+                    println!("Records:  {}", count);
+
+                    if let (Some(first_timestamp), Some(last_timestamp)) =
+                        (db.first_timestamp(), db.last_timestamp())
+                    {
+                        println!();
+                        println!("First:    {}", format_timestamp(first_timestamp));
+                        println!("Last:     {}", format_timestamp(last_timestamp));
+                        println!(
+                            "Period:   {}",
+                            format_duration(first_timestamp, last_timestamp)
+                        );
+                    }
                 }
-                Err(e) => {
-                    println!("Database error: {}", e);
-                }
+                Err(e) => println!("Database error: {}", e),
             }
         }
     }
