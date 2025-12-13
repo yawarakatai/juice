@@ -16,12 +16,6 @@ path = "src/main.rs"
 [dependencies]
 clap = { version = "4.5.53", features = ["derive"] }
 colored = "3.0.0"
+ctrlc = "3.5.1"
 directories = "6.0.0"
 rusqlite = { version = "0.37.0", features = ["bundled"] }
-tokio = { version = "1.48.0", features = [
-  "rt",
-  "rt-multi-thread",
-  "time",
-  "signal",
-  "macros",
-] }
