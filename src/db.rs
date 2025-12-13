@@ -22,9 +22,7 @@ impl Database {
                     status TEXT,
                     capacity INTEGER,
                     power_now REAL,
-                    energy_now, REAL,
-                    energy_full REAL,
-                    voltage REAL
+                    energy_now REAL,
                 );
 
                 CREATE INDEX IF NOT EXISTS idx_readings_timestamp
@@ -44,23 +42,12 @@ impl Database {
         capacity: Option<u32>,
         power_now: Option<f32>,
         energy_now: Option<f32>,
-        energy_full: Option<f32>,
-        voltage: Option<f32>,
     ) -> Result<()> {
         self.conn.execute(
             "INSERT INTO readings
-            (timestamp, battery, status, capacity, power_now, energy_now, energy_full, voltage)
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-            (
-                timestamp,
-                battery,
-                status,
-                capacity,
-                power_now,
-                energy_now,
-                energy_full,
-                voltage,
-            ),
+            (timestamp, battery, status, capacity, power_now, energy_now)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6 )",
+            (timestamp, battery, status, capacity, power_now, energy_now),
         )?;
         Ok(())
     }
