@@ -132,13 +132,45 @@ fn calc_time(info: &BatteryInfo) -> Option<(u32, u32)> {
     Some(calc_remaining(energy, power))
 }
 
+fn print_normal(info: &BatteryInfo) {
+    let bar = info
+        .capacity
+        .map(|n| progress_bar(n, 10))
+        .unwrap_or("None".to_string().white());
+
+    let capacity_str = info
+        .capacity
+        .map(|n| format!("{:3}%", n))
+        .unwrap_or_else(|| "  --%".to_string());
+
+    let power_str = info
+        .power_now
+        .map(|n| format!("{:5.1}W", n))
+        .unwrap_or_else(|| "  --W".to_string());
+
+    let charging_symbol = match info.status.as_str() {
+        "Charging" => "↑".yellow(),
+        "Discharging" | "Not charging" => "↓".cyan(),
+        "Full" => "→".green(),
+        _ => "?".white(),
+    };
+
+    let time = calc_time(&info)
+        .map(|(h, m)| format!("{:2}h{:02}m", h, m))
+        .unwrap_or(" --:--".to_string());
+
+    println!(
+        "{} {} {} {} {} {}",
+        info.name, bar, capacity_str, power_str, charging_symbol, time
+    );
+}
+
+fn print_verbose(info: &BatteryInfo) {
+    todo!()
+}
+
 fn main() {
     let args = Args::parse();
-
-    if args.verbose {
-        todo!();
-    }
-
     let battery_paths = find_batteries();
 
     if battery_paths.is_empty() {
@@ -148,36 +180,10 @@ fn main() {
 
     for path in battery_paths {
         let battery_info = get_battery_info(&path);
-
-        let bar = battery_info
-            .capacity
-            .map(|n| progress_bar(n, 10))
-            .unwrap_or("None".to_string().white());
-
-        let capacity_str = battery_info
-            .capacity
-            .map(|n| format!("{:3}%", n))
-            .unwrap_or_else(|| "  --%".to_string());
-
-        let power_str = battery_info
-            .power_now
-            .map(|n| format!("{:5.1}W", n))
-            .unwrap_or_else(|| "  --W".to_string());
-
-        let charging_symbol = match battery_info.status.as_str() {
-            "Charging" => "↑".yellow(),
-            "Discharging" | "Not charging" => "↓".cyan(),
-            "Full" => "→".green(),
-            _ => "?".white(),
-        };
-
-        let time = calc_time(&battery_info)
-            .map(|(h, m)| format!("{:2}h{:02}m", h, m))
-            .unwrap_or(" --:--".to_string());
-
-        println!(
-            "{} {} {} {} {} {}",
-            battery_info.name, bar, capacity_str, power_str, charging_symbol, time
-        );
+        if args.verbose {
+            print_verbose(&battery_info);
+        } else {
+            print_normal(&battery_info);
+        }
     }
 }
