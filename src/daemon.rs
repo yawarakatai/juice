@@ -3,7 +3,7 @@ use crate::db::Database;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::signal;
-use tokio::time::{interval, Duration};
+use tokio::time::Duration;
 
 fn unix_timestamp() -> i64 {
     SystemTime::now()
@@ -32,7 +32,7 @@ pub async fn run(db_path: PathBuf, interval_secs: u64) -> Result<(), Box<dyn std
 
                 for path in &battery_paths{
                     let info = get_battery_info(path);
-                    db.insert_reading(&info.name, timestamp,info.&status.to_string(), info.capacity, info.power_now, info.energy_now)?;
+                    db.insert_reading(&info.name, timestamp,&info.status.to_string(), info.capacity, info.power_now, info.energy_now)?;
 
                 }
             }
