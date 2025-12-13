@@ -24,11 +24,13 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Start daemon for recording battery info frequently
     Daemon {
         /// Interval in seconds
         #[arg(short, long, default_value = "30")]
         interval: u64,
     },
+    // Show status about daemon and stored data
     Status,
 }
 impl BatteryInfo {
@@ -156,12 +158,9 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
         }
         Some(Commands::Daemon { interval }) => {
-            println!("Starting daemon with {}s interval...", interval);
             let db_path = default_db_path();
-            let rt = tokio::runtime::Runtime::new()?;
-            if let Err(e) = rt.block_on(daemon::run(db_path, interval)) {
-                return Err(e);
-            }
+            println!("Starting daemon with {}s interval...", interval);
+            daemon::run(db_path, interval)?;
         }
         Some(Commands::Status) => {
             let db_path = default_db_path();
