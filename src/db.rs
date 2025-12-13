@@ -22,7 +22,7 @@ impl Database {
                     status TEXT,
                     capacity INTEGER,
                     power_now REAL,
-                    energy_now REAL,
+                    energy_now REAL
                 );
 
                 CREATE INDEX IF NOT EXISTS idx_readings_timestamp
@@ -65,5 +65,29 @@ pub fn default_db_path() -> PathBuf {
         data_dir.join("history.db")
     } else {
         PathBuf::from(".juice-history.db")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_init_and_insert() {
+        let db = Database::open(&PathBuf::from("memory:")).unwrap();
+        db.init_scheme().unwrap();
+
+        db.insert_reading(
+            "BAT0",
+            1234567890,
+            "Discharging",
+            Some(85),
+            Some(12.5),
+            Some(45.0),
+        )
+        .unwrap();
+
+        assert_eq!(db.count_readings().unwrap(), 1);
     }
 }
