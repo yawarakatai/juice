@@ -72,6 +72,13 @@ fn read_power(path: &str) -> Option<f32> {
     Some(current * voltage * 1e-12)
 }
 
+fn read_energy_or_charge(path: &str, class_name: &str) -> Option<f32> {
+    read_sysfs(format!("{}/energy_{}", path, class_name))
+        .or_else(|| read_sysfs(format!("{}/charge_{}", path, class_name)))
+        .and_then(|s| s.parse::<f32>().ok())
+        .map(|p| p * 1e-6)
+}
+
 fn get_battery_info(path: &str) -> BatteryInfo {
     let name: String = Path::new(path)
         .file_name()
@@ -89,17 +96,9 @@ fn get_battery_info(path: &str) -> BatteryInfo {
 
     let power_now: Option<f32> = read_power(path);
 
-    let energy_now: Option<f32> = read_sysfs(format!("{}/energy_now", path))
-        .and_then(|s| s.parse::<f32>().ok())
-        .map(|p| p * 1e-6);
-
-    let energy_full: Option<f32> = read_sysfs(format!("{}/energy_full", path))
-        .and_then(|s| s.parse::<f32>().ok())
-        .map(|p| p * 1e-6);
-
-    let energy_full_design: Option<f32> = read_sysfs(format!("{}/energy_full_design", path))
-        .and_then(|s| s.parse::<f32>().ok())
-        .map(|p| p * 1e-6);
+    let energy_now: Option<f32> = read_energy_or_charge(path, "now");
+    let energy_full: Option<f32> = read_energy_or_charge(path, "full");
+    let energy_full_design: Option<f32> = read_energy_or_charge(path, "full_design");
 
     let technology: Option<String> = read_sysfs(format!("{}/technology", path));
 
