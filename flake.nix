@@ -14,7 +14,7 @@
           pname = "juice";
           version = "0.1.0";
           src = ./.;
-          cargoLock.lockFile = "./Cargo.lock";
+          cargoLock.lockFile = ./Cargo.lock;
         };
 
         devShells.default = pkgs.mkShell {
