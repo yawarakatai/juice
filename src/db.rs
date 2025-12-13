@@ -44,7 +44,8 @@ impl Database {
         energy_now: Option<f32>,
     ) -> Result<()> {
         self.conn.execute(
-            "INSERT INTO readings
+            "
+            INSERT INTO readings
             (timestamp, battery, status, capacity, power_now, energy_now)
             VALUES (?1, ?2, ?3, ?4, ?5, ?6 )",
             (timestamp, battery, status, capacity, power_now, energy_now),
@@ -55,6 +56,26 @@ impl Database {
     pub fn count_readings(&self) -> Result<i64> {
         self.conn
             .query_row("SELECT COUNT(*) FROM readings", [], |row| row.get(0))
+    }
+
+    pub fn first_timestamp(&self) -> Option<i64> {
+        self.conn
+            .query_row(
+                "SELECT timestamp FROM readings ORDER BY timestamp ASC LIMIT 1",
+                [],
+                |row| row.get(0),
+            )
+            .ok()
+    }
+
+    pub fn last_timestamp(&self) -> Option<i64> {
+        self.conn
+            .query_row(
+                "SELECT timestamp FROM readings ORDER BY timestamp DESC LIMIT 1",
+                [],
+                |row| row.get(0),
+            )
+            .ok()
     }
 }
 
