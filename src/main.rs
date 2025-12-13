@@ -3,6 +3,11 @@ use colored::*;
 use std::fs;
 use std::path::Path;
 
+const MICRO: f32 = 1e-6;
+const PICO: f32 = 1e-12;
+
+const POWER_SUPPLY_PATH: &str = "/sys/class/power_supply";
+
 #[derive(Parser)]
 #[command(name = "juice")]
 #[command(about = "Battery status for Linux")]
@@ -24,6 +29,51 @@ struct BatteryInfo {
     technology: Option<String>,
 }
 
+impl BatteryInfo {
+    fn bar(&self) -> ColoredString {
+        self.capacity
+            .map(|n| progress_bar(n, 10))
+            .unwrap_or("None".to_string().white())
+    }
+
+    fn capacity_str(&self) -> String {
+        self.capacity
+            .map(|n| format!("{:3}%", n))
+            .unwrap_or_else(|| "  --%".to_string())
+    }
+
+    fn power_str(&self) -> String {
+        self.power_now
+            .map(|n| format!("{:5.1}W", n))
+            .unwrap_or_else(|| "  --W".to_string())
+    }
+
+    fn calc_time(&self) -> Option<(u32, u32)> {
+        let power = self.power_now?;
+        if power <= 0.0 {
+            return None;
+        }
+
+        let energy_now = self.energy_now?;
+
+        let energy = if self.status == "Charging" {
+            self.energy_full? - energy_now
+        } else {
+            energy_now
+        };
+
+        let hours = energy / power;
+        let minutes = hours.fract() * 60.0;
+        Some((hours as u32, minutes as u32))
+    }
+
+    fn remaining_str(&self) -> String {
+        self.calc_time()
+            .map(|(h, m)| format!("{:2}h{:02}m", h, m))
+            .unwrap_or(" --:--".to_string())
+    }
+}
+
 fn read_sysfs(path: impl AsRef<Path>) -> Option<String> {
     fs::read_to_string(path.as_ref())
         .ok()
@@ -32,7 +82,7 @@ fn read_sysfs(path: impl AsRef<Path>) -> Option<String> {
 
 fn find_batteries() -> Vec<String> {
     let mut batteries = Vec::new();
-    let power_supply = Path::new("/sys/class/power_supply");
+    let power_supply = Path::new(POWER_SUPPLY_PATH);
 
     if let Ok(entries) = fs::read_dir(power_supply) {
         for entry in entries.flatten() {
@@ -61,7 +111,7 @@ fn read_power(path: &str) -> Option<f32> {
     if let Some(power) =
         read_sysfs(format!("{}/power_now", path)).and_then(|s| s.parse::<f32>().ok())
     {
-        return Some(power * 1e-6);
+        return Some(power * MICRO);
     }
 
     let current =
@@ -69,14 +119,14 @@ fn read_power(path: &str) -> Option<f32> {
     let voltage =
         read_sysfs(format!("{}/voltage_now", path)).and_then(|s| s.parse::<f32>().ok())?;
 
-    Some(current * voltage * 1e-12)
+    Some(current * voltage * PICO)
 }
 
 fn read_energy_or_charge(path: &str, class_name: &str) -> Option<f32> {
     read_sysfs(format!("{}/energy_{}", path, class_name))
         .or_else(|| read_sysfs(format!("{}/charge_{}", path, class_name)))
         .and_then(|s| s.parse::<f32>().ok())
-        .map(|p| p * 1e-6)
+        .map(|p| p * MICRO)
 }
 
 fn get_battery_info(path: &str) -> BatteryInfo {
@@ -128,28 +178,6 @@ fn progress_bar(percent: u32, width: u32) -> ColoredString {
     }
 }
 
-fn calc_remaining(energy: f32, power: f32) -> (u32, u32) {
-    if power <= 0.0 {
-        return (0, 0);
-    }
-    let hours = energy / power;
-    let minutes = hours.fract() * 60.0;
-    (hours as u32, minutes as u32)
-}
-
-fn calc_time(info: &BatteryInfo) -> Option<(u32, u32)> {
-    let power = info.power_now?;
-    let energy_now = info.energy_now?;
-
-    let energy = if info.status == "Charging" {
-        info.energy_full? - energy_now
-    } else {
-        energy_now
-    };
-
-    Some(calc_remaining(energy, power))
-}
-
 fn calc_health(info: &BatteryInfo) -> Option<f32> {
     let current_full = info.energy_full?;
     let design_full = info.energy_full_design?;
@@ -158,21 +186,6 @@ fn calc_health(info: &BatteryInfo) -> Option<f32> {
 }
 
 fn print_normal(info: &BatteryInfo) {
-    let bar = info
-        .capacity
-        .map(|n| progress_bar(n, 10))
-        .unwrap_or("None".to_string().white());
-
-    let capacity_str = info
-        .capacity
-        .map(|n| format!("{:3}%", n))
-        .unwrap_or_else(|| "  --%".to_string());
-
-    let power_str = info
-        .power_now
-        .map(|n| format!("{:5.1}W", n))
-        .unwrap_or_else(|| "  --W".to_string());
-
     let charging_symbol = match info.status.as_str() {
         "Charging" => "↑".yellow(),
         "Discharging" | "Not charging" => "↓".cyan(),
@@ -180,13 +193,14 @@ fn print_normal(info: &BatteryInfo) {
         _ => "?".white(),
     };
 
-    let remaining_time_str = calc_time(info)
-        .map(|(h, m)| format!("{:2}h{:02}m", h, m))
-        .unwrap_or(" --:--".to_string());
-
     println!(
         "{} {} {} {} {} {}",
-        info.name, bar, capacity_str, power_str, charging_symbol, remaining_time_str
+        info.name,
+        info.bar(),
+        info.capacity_str(),
+        info.power_str(),
+        charging_symbol,
+        info.remaining_str(),
     );
 }
 
@@ -195,20 +209,6 @@ fn print_verbose(info: &BatteryInfo) {
         .capacity
         .map(|n| progress_bar(n, 10))
         .unwrap_or("None".to_string().white());
-
-    let capacity_str = info
-        .capacity
-        .map(|n| format!("{:3}%", n))
-        .unwrap_or_else(|| "  --%".to_string());
-
-    let power_str = info
-        .power_now
-        .map(|n| format!("{:5.1}W", n))
-        .unwrap_or_else(|| "  --W".to_string());
-
-    let remaining_time_str = calc_time(info)
-        .map(|(h, m)| format!("{:2}h{:02}m", h, m))
-        .unwrap_or(" --:--".to_string());
 
     let energy_str = info
         .energy_now
@@ -222,12 +222,18 @@ fn print_verbose(info: &BatteryInfo) {
         .unwrap_or_else(|| "Unknown".to_string());
 
     let health_str = calc_health(info)
-        .map(|n| format!("{:3}%", n))
+        .map(|n| format!("{:5.1}%", n))
         .unwrap_or_else(|| " --%".to_string());
 
-    println!("{} {} {} {}", info.name, bar, capacity_str, info.status);
-    println!("  Power:       {}", power_str);
-    println!("  Remaining:   {}", remaining_time_str);
+    println!(
+        "{} {} {} {}",
+        info.name,
+        bar,
+        info.capacity_str(),
+        info.status
+    );
+    println!("  Power:       {}", info.power_str());
+    println!("  Remaining:   {}", info.remaining_str());
     println!("  Energy:      {}", energy_str);
     println!("  Cycle count: {}", cycle_count_str);
     println!("  Health:      {}", health_str);
