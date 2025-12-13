@@ -1,4 +1,4 @@
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use colored::*;
 use std::fs;
 use std::path::Path;
@@ -10,11 +10,23 @@ const POWER_SUPPLY_PATH: &str = "/sys/class/power_supply";
 
 #[derive(Parser)]
 #[command(name = "juice")]
-#[command(about = "Battery status for Linux")]
-struct Args {
+#[command(about = "Battery status and history for Linux")]
+struct Cli {
+    #[command(subcommand)]
+    command: Option<Commands>,
+
     // Show detailed information
     #[arg(short, long)]
     verbose: bool,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    Daemon {
+        #[arg(short, long, default_value = "30")]
+        interval: u64,
+    },
+    Status,
 }
 
 struct BatteryInfo {
@@ -246,21 +258,31 @@ fn print_verbose(info: &BatteryInfo) {
 }
 
 fn main() {
-    let args = Args::parse();
+    let cli = Cli::parse();
 
-    let battery_paths = find_batteries();
+    match cli.command {
+        None => {
+            let battery_paths = find_batteries();
 
-    if battery_paths.is_empty() {
-        println!("No battery found");
-        return;
-    }
+            if battery_paths.is_empty() {
+                println!("No battery found");
+                return;
+            }
 
-    for path in battery_paths {
-        let battery_info = get_battery_info(&path);
-        if args.verbose {
-            print_verbose(&battery_info);
-        } else {
-            print_normal(&battery_info);
+            for path in battery_paths {
+                let battery_info = get_battery_info(&path);
+                if cli.verbose {
+                    print_verbose(&battery_info);
+                } else {
+                    print_normal(&battery_info);
+                }
+            }
+        }
+        Some(Commands::Daemon { interval }) => {
+            println!("Starting daemon with {}s interval...", interval);
+        }
+        Some(Commands::Status) => {
+            println!("Status: not implemented yet");
         }
     }
 }
