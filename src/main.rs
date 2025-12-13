@@ -66,23 +66,23 @@ fn get_battery_info(path: &str) -> BatteryInfo {
     let cycle_count: Option<u32> =
         read_sysfs(format!("{}/{}", path, "cycle_count")).and_then(|s| s.parse().ok());
 
-    let power_now: Option<f32> = read_sysfs(format!("{}/{}", path, "power_now"))
+    let power_now: Option<f32> = read_sysfs(format!("{}/power_now", path))
         .and_then(|s| s.parse::<f32>().ok())
         .map(|p| p * 1e-6);
 
-    let energy_now: Option<f32> = read_sysfs(format!("{}/{}", path, "energy_now"))
+    let energy_now: Option<f32> = read_sysfs(format!("{}/energy_now", path))
         .and_then(|s| s.parse::<f32>().ok())
         .map(|p| p * 1e-6);
 
-    let energy_full: Option<f32> = read_sysfs(format!("{}/{}", path, "energy_full"))
+    let energy_full: Option<f32> = read_sysfs(format!("{}/energy_full", path))
         .and_then(|s| s.parse::<f32>().ok())
         .map(|p| p * 1e-6);
 
-    let energy_full_design: Option<f32> = read_sysfs(format!("{}/{}", path, "energy_full_design"))
+    let energy_full_design: Option<f32> = read_sysfs(format!("{}/energy_full_design", path))
         .and_then(|s| s.parse::<f32>().ok())
         .map(|p| p * 1e-6);
 
-    let technology: Option<String> = read_sysfs(format!("{}/{}", path, "technology"));
+    let technology: Option<String> = read_sysfs(format!("{}/technology", path));
 
     BatteryInfo {
         name,
@@ -132,6 +132,13 @@ fn calc_time(info: &BatteryInfo) -> Option<(u32, u32)> {
     Some(calc_remaining(energy, power))
 }
 
+fn calc_health(info: &BatteryInfo) -> Option<f32> {
+    let current_full = info.energy_full?;
+    let design_full = info.energy_full_design?;
+
+    Some(current_full / design_full * 100.0)
+}
+
 fn print_normal(info: &BatteryInfo) {
     let bar = info
         .capacity
@@ -155,18 +162,61 @@ fn print_normal(info: &BatteryInfo) {
         _ => "?".white(),
     };
 
-    let time = calc_time(&info)
+    let remaining_time_str = calc_time(info)
         .map(|(h, m)| format!("{:2}h{:02}m", h, m))
         .unwrap_or(" --:--".to_string());
 
     println!(
         "{} {} {} {} {} {}",
-        info.name, bar, capacity_str, power_str, charging_symbol, time
+        info.name, bar, capacity_str, power_str, charging_symbol, remaining_time_str
     );
 }
 
 fn print_verbose(info: &BatteryInfo) {
-    todo!()
+    let bar = info
+        .capacity
+        .map(|n| progress_bar(n, 10))
+        .unwrap_or("None".to_string().white());
+
+    let capacity_str = info
+        .capacity
+        .map(|n| format!("{:3}%", n))
+        .unwrap_or_else(|| "  --%".to_string());
+
+    let power_str = info
+        .power_now
+        .map(|n| format!("{:5.1}W", n))
+        .unwrap_or_else(|| "  --W".to_string());
+
+    let remaining_time_str = calc_time(info)
+        .map(|(h, m)| format!("{:2}h{:02}m", h, m))
+        .unwrap_or(" --:--".to_string());
+
+    let energy_str = info
+        .energy_now
+        .zip(info.energy_full)
+        .map(|(now, full)| format!("{:5.1} / {:5.1} Wh", now, full))
+        .unwrap_or_else(|| " -- /  -- Wh".to_string());
+
+    let cycle_count_str = info
+        .cycle_count
+        .map(|n| n.to_string())
+        .unwrap_or_else(|| "Unknown".to_string());
+
+    let health_str = calc_health(info)
+        .map(|n| format!("{:3}%", n))
+        .unwrap_or_else(|| " --%".to_string());
+
+    println!("{} {} {} {}", info.name, bar, capacity_str, info.status);
+    println!("  Power:       {}", power_str);
+    println!("  Remaining:   {}", remaining_time_str);
+    println!("  Energy:      {}", energy_str);
+    println!("  Cycle count: {}", cycle_count_str);
+    println!("  Health:      {}", health_str);
+    println!(
+        "  Technology:  {}",
+        info.technology.as_deref().unwrap_or("Unknown")
+    );
 }
 
 fn main() {
