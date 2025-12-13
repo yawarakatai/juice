@@ -50,6 +50,28 @@ fn find_batteries() -> Vec<String> {
     batteries
 }
 
+// power_supply class has several types of expressions
+// For example:
+// power_now / current_now
+// energy_now / charge_now
+// energy_full / charge_full
+// energy_full_design / charge_full_design
+
+fn read_power(path: &str) -> Option<f32> {
+    if let Some(power) =
+        read_sysfs(format!("{}/power_now", path)).and_then(|s| s.parse::<f32>().ok())
+    {
+        return Some(power * 1e-6);
+    }
+
+    let current =
+        read_sysfs(format!("{}/current_now", path)).and_then(|s| s.parse::<f32>().ok())?;
+    let voltage =
+        read_sysfs(format!("{}/voltage_now", path)).and_then(|s| s.parse::<f32>().ok())?;
+
+    Some(current * voltage * 1e-12)
+}
+
 fn get_battery_info(path: &str) -> BatteryInfo {
     let name: String = Path::new(path)
         .file_name()
@@ -65,9 +87,7 @@ fn get_battery_info(path: &str) -> BatteryInfo {
     let cycle_count: Option<u32> =
         read_sysfs(format!("{}/cycle_count", path)).and_then(|s| s.parse().ok());
 
-    let power_now: Option<f32> = read_sysfs(format!("{}/power_now", path))
-        .and_then(|s| s.parse::<f32>().ok())
-        .map(|p| p * 1e-6);
+    let power_now: Option<f32> = read_power(path);
 
     let energy_now: Option<f32> = read_sysfs(format!("{}/energy_now", path))
         .and_then(|s| s.parse::<f32>().ok())
