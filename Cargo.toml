@@ -1,7 +1,17 @@
 [package]
-name = "juice"
+name = "juice-cli"
 version = "0.1.0"
 edition = "2024"
+authors = ["yawarakatai"]
+description = "Modern battery status for Linux"
+license = "MIT"
+repository = "https://github.com/yawarakatai/juice"
+keywords = ["battery", "linux", "cli", "power"]
+categories = ["command-line-utilities"]
+
+[[bin]]
+name = "juice"
+path = "src/main.rs"
 
 [dependencies]
 clap = { version = "4.5.53", features = ["derive"] }
