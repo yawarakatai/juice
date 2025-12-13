@@ -1,5 +1,8 @@
+mod db;
+
 use clap::{Parser, Subcommand};
 use colored::*;
+use db::{default_db_path, Database};
 use std::fs;
 use std::path::Path;
 
@@ -282,7 +285,19 @@ fn main() {
             println!("Starting daemon with {}s interval...", interval);
         }
         Some(Commands::Status) => {
-            println!("Status: not implemented yet");
+            let db_path = default_db_path();
+            println!("Database: {}", db_path.display());
+
+            match Database::open(&db_path) {
+                Ok(db) => {
+                    db.init_scheme().expect("Failed to init schema");
+                    let count = db.count_readings().unwrap_or(0);
+                    println!("Total readings: {}", count);
+                }
+                Err(e) => {
+                    println!("Database error: {}", e);
+                }
+            }
         }
     }
 }
