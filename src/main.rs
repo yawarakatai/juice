@@ -2,19 +2,22 @@ mod battery;
 mod daemon;
 mod db;
 
-use battery::{calc_health, find_batteries, get_battery_info, progress_bar, BatteryInfo};
+use battery::{
+    calc_health, find_batteries, get_battery_info, progress_bar, BatteryInfo, BatteryStatus,
+};
 use clap::{Parser, Subcommand};
 use colored::*;
 use db::{default_db_path, Database};
+use std::error::Error;
 
 #[derive(Parser)]
-#[command(name = "juice")]
-#[command(about = "Battery status and history for Linux")]
+#[command(version, about)]
+/// Battery status and history for Linux
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
 
-    // Show detailed information
+    /// Show detailed information
     #[arg(short, long)]
     verbose: bool,
 }
@@ -22,6 +25,7 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     Daemon {
+        /// Interval in seconds
         #[arg(short, long, default_value = "30")]
         interval: u64,
     },
@@ -54,7 +58,7 @@ impl BatteryInfo {
 
         let energy_now = self.energy_now?;
 
-        let energy = if self.status == "Charging" {
+        let energy = if self.status == BatteryStatus::Charging {
             self.energy_full? - energy_now
         } else {
             energy_now
@@ -73,10 +77,10 @@ impl BatteryInfo {
 }
 
 fn print_normal(info: &BatteryInfo) {
-    let charging_symbol = match info.status.as_str() {
-        "Charging" => "↑".yellow(),
-        "Discharging" | "Not charging" => "↓".cyan(),
-        "Full" => "→".green(),
+    let charging_symbol = match info.status {
+        BatteryStatus::Charging => "↑".yellow(),
+        BatteryStatus::Discharging | BatteryStatus::NotCharging => "↓".cyan(),
+        BatteryStatus::Full => "→".green(),
         _ => "?".white(),
     };
 
@@ -130,7 +134,7 @@ fn print_verbose(info: &BatteryInfo) {
     );
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
 
     match cli.command {
@@ -139,7 +143,7 @@ fn main() {
 
             if battery_paths.is_empty() {
                 println!("No battery found");
-                return;
+                return Ok(());
             }
 
             for path in battery_paths {
@@ -153,6 +157,11 @@ fn main() {
         }
         Some(Commands::Daemon { interval }) => {
             println!("Starting daemon with {}s interval...", interval);
+            let db_path = default_db_path();
+            let rt = tokio::runtime::Runtime::new()?;
+            if let Err(e) = rt.block_on(daemon::run(db_path, interval)) {
+                return Err(e);
+            }
         }
         Some(Commands::Status) => {
             let db_path = default_db_path();
@@ -170,4 +179,6 @@ fn main() {
             }
         }
     }
+
+    Ok(())
 }
