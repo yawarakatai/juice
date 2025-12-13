@@ -81,23 +81,25 @@ fn read_sysfs(path: impl AsRef<Path>) -> Option<String> {
 }
 
 fn find_batteries() -> Vec<String> {
-    let mut batteries = Vec::new();
     let power_supply = Path::new(POWER_SUPPLY_PATH);
 
-    if let Ok(entries) = fs::read_dir(power_supply) {
-        for entry in entries.flatten() {
-            let type_path = entry.path().join("type");
-
-            // This code can be shorter with if, but it obstructs rustfmt
-            match fs::read_to_string(&type_path) {
-                Ok(t) if t.trim() == "Battery" => {
-                    batteries.push(entry.path().to_string_lossy().to_string());
-                }
-                _ => {}
-            }
+    let entries = match fs::read_dir(power_supply) {
+        Ok(e) => e,
+        Err(e) => {
+            eprintln!("Warning: {}:{}", power_supply.display(), e);
+            return Vec::new();
         }
-    }
-    batteries
+    };
+
+    entries
+        .flatten()
+        .filter(|entry| {
+            fs::read_to_string(entry.path().join("type"))
+                .map(|t| t.trim() == "Battery")
+                .unwrap_or(false)
+        })
+        .map(|entry| entry.path().to_string_lossy().to_string())
+        .collect()
 }
 
 // power_supply class has several types of expressions
@@ -245,6 +247,7 @@ fn print_verbose(info: &BatteryInfo) {
 
 fn main() {
     let args = Args::parse();
+
     let battery_paths = find_batteries();
 
     if battery_paths.is_empty() {
