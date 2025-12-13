@@ -8,7 +8,7 @@ use tokio::time::{interval, Duration};
 fn unix_timestamp() -> i64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .unwrap()
+        .unwrap_or_default()
         .as_secs() as i64
 }
 
@@ -16,7 +16,7 @@ pub async fn run(db_path: PathBuf, interval_secs: u64) -> Result<(), Box<dyn std
     let battery_paths = find_batteries();
 
     if battery_paths.is_empty() {
-        eprintln!("No battery found");
+        // eprintln!("No battery found");
         return Err("No battery found".into());
     }
 
@@ -32,7 +32,7 @@ pub async fn run(db_path: PathBuf, interval_secs: u64) -> Result<(), Box<dyn std
 
                 for path in &battery_paths{
                     let info = get_battery_info(path);
-                    db.insert_reading(&info.name, timestamp, &info.status, info.capacity, info.power_now, info.energy_now)?;
+                    db.insert_reading(&info.name, timestamp,info.&status.to_string(), info.capacity, info.power_now, info.energy_now)?;
 
                 }
             }
