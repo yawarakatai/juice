@@ -2,6 +2,17 @@ use directories::ProjectDirs;
 use rusqlite::{Connection, Result};
 use std::path::PathBuf;
 
+use crate::battery::BatteryStatus;
+
+pub struct Reading {
+    pub battery: String,
+    pub timestamp: i64,
+    pub status: BatteryStatus,
+    pub capacity: Option<u32>,
+    pub power_now: Option<f32>,
+    pub energy_now: Option<f32>,
+}
+
 pub struct Database {
     conn: Connection,
 }
@@ -76,6 +87,38 @@ impl Database {
                 |row| row.get(0),
             )
             .ok()
+    }
+
+    pub fn get_readings(&self, from: Option<i64>, to: Option<i64>) -> Result<Vec<Reading>> {
+        let start = from.unwrap_or_else(i64::MIN);
+        let end = to.unwrap_or_else(i64::MAX);
+
+        let mut stmt = self.conn.prepare(
+            "
+            SELECT timestamp, battery, status, capacity, power_now, energy_now
+            FROM reading
+            WHERE timestamp >= ?1 AND timestamp <= ?2
+            ORDER BY timestamp ASC
+            ",
+        )?;
+
+        let rows = stmt.query_map([start, end], |row| {
+            Ok(Reading {
+                timestamp: row.get(0)?,
+                battery: row.get(1)?,
+                status: row
+                    .get(2)?
+                    .parse::<BatteryStatus>()
+                    .unwrap_or(BatteryStatus::Unknown),
+                capacity: row.get(3)?,
+                power_now: row.get(4)?,
+                energy_now: row.get(5)?,
+            })
+        })?;
+
+        let readings = rows.collect::<Result<Vec<_>, _>>()?;
+
+        Ok(readings)
     }
 }
 
