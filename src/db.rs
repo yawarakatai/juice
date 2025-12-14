@@ -90,8 +90,8 @@ impl Database {
     }
 
     pub fn get_readings(&self, from: Option<i64>, to: Option<i64>) -> Result<Vec<Reading>> {
-        let start = from.unwrap_or_else(i64::MIN);
-        let end = to.unwrap_or_else(i64::MAX);
+        let start = from.unwrap_or(i64::MIN);
+        let end = to.unwrap_or(i64::MAX);
 
         let mut stmt = self.conn.prepare(
             "
@@ -103,13 +103,11 @@ impl Database {
         )?;
 
         let rows = stmt.query_map([start, end], |row| {
+            let status_str: String = row.get(2)?;
             Ok(Reading {
                 timestamp: row.get(0)?,
                 battery: row.get(1)?,
-                status: row
-                    .get(2)?
-                    .parse::<BatteryStatus>()
-                    .unwrap_or(BatteryStatus::Unknown),
+                status: status_str.parse().unwrap_or(BatteryStatus::Unknown),
                 capacity: row.get(3)?,
                 power_now: row.get(4)?,
                 energy_now: row.get(5)?,
