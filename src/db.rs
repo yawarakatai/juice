@@ -96,7 +96,7 @@ impl Database {
         let mut stmt = self.conn.prepare(
             "
             SELECT timestamp, battery, status, capacity, power_now, energy_now
-            FROM reading
+            FROM readings
             WHERE timestamp >= ?1 AND timestamp <= ?2
             ORDER BY timestamp ASC
             ",
