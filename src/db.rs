@@ -137,7 +137,7 @@ mod tests {
 
     #[test]
     fn test_init_and_insert() {
-        let db = Database::open(&PathBuf::from("memory:")).unwrap();
+        let db = Database::open(&PathBuf::from(":memory:")).unwrap();
         db.init_scheme().unwrap();
 
         db.insert_reading(
