@@ -10,6 +10,7 @@ use clap::{Parser, Subcommand};
 use colored::*;
 use db::{default_db_path, Database};
 use std::error::Error;
+use std::path::PathBuf;
 
 #[derive(Parser)]
 #[command(version, about)]
@@ -33,7 +34,23 @@ enum Commands {
     },
     // Show status about daemon and stored data
     Status,
+
+    /// Export data to CSV
+    Export {
+        /// Output file path (stdout if not specified)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+
+        /// Start date (YYYY-MM-DD)
+        #[arg(long)]
+        from: Option<String>,
+
+        /// End date (YYYY-MM-DD)
+        #[arg(long)]
+        to: Option<String>,
+    },
 }
+
 impl BatteryInfo {
     fn bar(&self) -> ColoredString {
         self.capacity
