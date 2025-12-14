@@ -1,6 +1,7 @@
 mod battery;
 mod daemon;
 mod db;
+mod export;
 
 use battery::{
     calc_health, find_batteries, get_battery_info, progress_bar, BatteryInfo, BatteryStatus,
@@ -10,6 +11,7 @@ use clap::{Parser, Subcommand};
 use colored::*;
 use db::{default_db_path, Database};
 use std::error::Error;
+use std::path::PathBuf;
 
 #[derive(Parser)]
 #[command(version, about)]
@@ -33,7 +35,23 @@ enum Commands {
     },
     // Show status about daemon and stored data
     Status,
+
+    /// Export data to CSV
+    Export {
+        /// Output file path (stdout if not specified)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+
+        /// Start date (YYYY-MM-DD)
+        #[arg(long)]
+        from: Option<String>,
+
+        /// End date (YYYY-MM-DD)
+        #[arg(long)]
+        to: Option<String>,
+    },
 }
+
 impl BatteryInfo {
     fn bar(&self) -> ColoredString {
         self.capacity
@@ -113,6 +131,14 @@ fn format_duration(first: i64, last: i64) -> String {
     } else {
         format!("{} mins", mins)
     }
+}
+
+fn parse_date(s: &str) -> Option<i64> {
+    use chrono::NaiveDate;
+    NaiveDate::parse_from_str(s, "%Y-%m-%d")
+        .ok()
+        .and_then(|d| d.and_hms_opt(0, 0, 0))
+        .map(|dt| dt.and_utc().timestamp())
 }
 
 fn print_normal(info: &BatteryInfo) {
@@ -225,6 +251,25 @@ fn main() -> Result<(), Box<dyn Error>> {
                     }
                 }
                 Err(e) => println!("Database error: {}", e),
+            }
+        }
+        Some(Commands::Export { output, from, to }) => {
+            let db_path = default_db_path();
+            let db = Database::open(&db_path)?;
+
+            let from_timestamp = from.as_ref().and_then(|s| parse_date(s));
+            let to_timestamp = to.as_ref().and_then(|s| parse_date(s));
+
+            let readings = db.get_readings(from_timestamp, to_timestamp)?;
+
+            match output {
+                Some(path) => {
+                    let file = std::fs::File::create(path)?;
+                    export::write_csv(file, &readings)?;
+                }
+                None => {
+                    export::write_csv(std::io::stdout(), &readings)?;
+                }
             }
         }
     }
