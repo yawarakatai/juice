@@ -4,7 +4,18 @@
 ```bash
 juice        # Simple output
 juice -v     # Detailed output
-juice --help # Show help
+
+# Daemon (background data collection)
+juice daemon              # Start with 30s interval
+juice daemon -i 60        # Custom interval
+
+# Status
+juice status              # Show database info
+
+# Export
+juice export              # CSV to stdout
+juice export -o data.csv  # Save to file
+juice export --from 2025-12-13 --to 2025-12-14
 ```
 
 ## 📸 Example Output
