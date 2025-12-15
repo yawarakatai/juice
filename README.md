@@ -61,11 +61,31 @@ cargo build --release
 nix run github:yawarakatai/juice
 ```
 
-Or add to your flake inputs:
-```nix
-{
-  inputs.juice.url = "github:yawarakatai/juice";
-}
+### Systemd service
+Create a service file to ~/.config/systemd/user/juice-daemon.service
+
+```juice.service
+[Unit]
+Description=Juice battery history daemon
+Documentation=https://github.com/yawarakatai/juice
+After=default.target
+
+[Service]
+Type=simple
+ExecStart=%h/.cargo/bin/juice daemon
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=default.target
+```
+
+and then, enable it
+
+```bash
+systemctl --user daemon-reload
+systemctl --user enable juice-daemon
+systemctl --user start juice-daemon
 ```
 
 ## ✨ Features
@@ -73,7 +93,8 @@ Or add to your flake inputs:
 - Simple, clean output with progress bar and colors
 - Multiple battery support (ThinkPad, etc.)
 - Detailed view with battery health, cycle count, and more
-- No dependencies other than sysfs (works on minimal systems)
+- Background daemon for continuous battery history logging
+- SQLite database storage with CSV export
 
 ## 🔧 Compatibility
 
