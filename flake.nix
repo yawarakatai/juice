@@ -17,7 +17,7 @@
           cargoLock.lockFile = ./Cargo.lock;
 
           nativeBuildInputs = [ pkgs.pkg-config ];
-          buidlInputs = [ pkgs.sqlite ];
+          buildInputs = [ pkgs.sqlite ];
         };
 
         devShells.default = pkgs.mkShell {
