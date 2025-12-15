@@ -23,13 +23,13 @@ pub fn print_normal(info: &BatteryInfo) {
     let time_str = format_time(info.calc_remaining_time());
 
     println!(
-        "{:<6} {} {:>4}  {:<6} {}  {}",
+        "{:<6} {} {:>4} {}  {}  {}",
         info.name.bold(),
         bar,
         format!("{}%", capacity).color(color).bold(),
-        power_str,
         symbol,
-        time_str
+        power_str,
+        time_str,
     );
 }
 
@@ -40,12 +40,12 @@ pub fn print_verbose(info: &BatteryInfo) {
     // Header
     println!(
         "{} {} {}",
-        info.name.bold().on_blue(),
+        info.name.bold().white(),
         draw_progress_bar(capacity, 20, color),
         info.status.to_string().color(color).bold()
     );
 
-    let label = |s: &str| s.truecolor(120, 120, 120);
+    let label = |s: &str| s.truecolor(127, 127, 127);
     let val = |s: String| s.white().bold();
 
     println!(
@@ -56,23 +56,25 @@ pub fn print_verbose(info: &BatteryInfo) {
             .map(|p| format!("{:.1} W", p))
             .unwrap_or("--".into()))
     );
-    println!(
-        "  {:<12} {}",
-        label("Capacity:"),
-        val(format!("{} %", capacity))
-    );
+
     println!(
         "  {:<12} {}",
         label("Remaining:"),
         val(format_time(info.calc_remaining_time()))
     );
 
+    println!(
+        "  {:<12} {}",
+        label("Capacity:"),
+        val(format!("{} %", capacity))
+    );
+
     if let (Some(now), Some(full)) = (info.energy_now, info.energy_full) {
         println!(
-            "  {:<12} {} / {:.1} Wh",
+            "  {:<12} {} / {} Wh",
             label("Energy:"),
             val(format!("{:.1}", now)),
-            full
+            val(format!("{:.1}", full)),
         );
     }
 
@@ -89,7 +91,7 @@ pub fn print_verbose(info: &BatteryInfo) {
         println!(
             "  {:<12} {}",
             label("Health:"),
-            format!("{:.1}%", health).color(h_color)
+            format!("{:.1} %", health).color(h_color)
         );
     }
 
@@ -102,8 +104,8 @@ pub fn print_verbose(info: &BatteryInfo) {
 
 fn get_status_color(info: &BatteryInfo) -> Color {
     match info.status {
-        BatteryStatus::Charging => Color::Blue,
-        BatteryStatus::Full => Color::Green,
+        BatteryStatus::Charging => Color::Cyan,
+        BatteryStatus::Full => Color::Blue,
         BatteryStatus::Unknown => Color::White,
         _ => match info.capacity.unwrap_or(0) {
             0..=20 => Color::Red,
