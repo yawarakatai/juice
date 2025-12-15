@@ -67,7 +67,7 @@ impl BatteryInfo {
 
     fn power_str(&self) -> String {
         self.power_now
-            .map(|n| format!("{:5.1}W", n))
+            .map(|n| format!("{:.1}W", n))
             .unwrap_or_else(|| "  --W".to_string())
     }
 
@@ -92,7 +92,7 @@ impl BatteryInfo {
 
     fn remaining_str(&self) -> String {
         self.calc_time()
-            .map(|(h, m)| format!("{:2}h{:02}m", h, m))
+            .map(|(h, m)| format!("{:}h{:02}m", h, m))
             .unwrap_or(" --:--".to_string())
     }
 }
@@ -150,7 +150,7 @@ fn print_normal(info: &BatteryInfo) {
     };
 
     println!(
-        "{} {} {} {} {} {}",
+        "{} {} {:4} {:6} {} {:6}",
         info.name,
         info.bar(),
         info.capacity_str(),
@@ -169,7 +169,7 @@ fn print_verbose(info: &BatteryInfo) {
     let energy_str = info
         .energy_now
         .zip(info.energy_full)
-        .map(|(now, full)| format!("{:5.1} / {:5.1} Wh", now, full))
+        .map(|(now, full)| format!("{:.1} / {:.1} Wh", now, full))
         .unwrap_or_else(|| " -- /  -- Wh".to_string());
 
     let cycle_count_str = info
@@ -178,7 +178,7 @@ fn print_verbose(info: &BatteryInfo) {
         .unwrap_or_else(|| "Unknown".to_string());
 
     let health_str = calc_health(info)
-        .map(|n| format!("{:5.1}%", n))
+        .map(|n| format!("{:.1}%", n))
         .unwrap_or_else(|| " --%".to_string());
 
     println!(
@@ -188,11 +188,11 @@ fn print_verbose(info: &BatteryInfo) {
         info.capacity_str(),
         info.status
     );
-    println!("  Power:       {}", info.power_str());
-    println!("  Remaining:   {}", info.remaining_str());
-    println!("  Energy:      {}", energy_str);
-    println!("  Cycle count: {}", cycle_count_str);
-    println!("  Health:      {}", health_str);
+    println!("  Power:       {:<}", info.power_str());
+    println!("  Remaining:   {:<}", info.remaining_str());
+    println!("  Energy:      {:<}", energy_str);
+    println!("  Cycle count: {:<}", cycle_count_str);
+    println!("  Health:      {:<}", health_str);
     println!(
         "  Technology:  {}",
         info.technology.as_deref().unwrap_or("Unknown")
