@@ -58,8 +58,15 @@ impl Database {
             "
             INSERT INTO readings
             (timestamp, battery, status, capacity, power_now, energy_now)
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6 )",
-            (timestamp, battery, status, capacity, power_now, energy_now),
+            VALUES (:ts, :bat, :status, :capacity, :power, :energy )",
+            rusqlite::named_params! {
+                ":ts": timestamp,
+                ":bat": battery,
+                ":status": status,
+                ":capacity": capacity,
+                ":power": power_now,
+                ":energy": energy_now,
+            },
         )?;
         Ok(())
     }

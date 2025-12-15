@@ -22,24 +22,19 @@ juice export --from 2025-12-13 --to 2025-12-14
 
 ### Normal mode
 ```
-BAT0 ████████░░  84%  11.2W ↓  2h34m
-```
-
-### With multiple batteries
-```
-BAT0 ████████░░  84%   8.2W ↓  3h12m
-BAT1 ██████░░░░  62%   3.0W ↓  2h58m
+BAT0   ██████░░░░  63% ↓  5.1W  5h55m
 ```
 
 ### Verbose mode (`-v`)
 ```
-BAT0 ████████░░  84% Discharging
-  Power:        11.2W
-  Remaining:    2h34m
-  Energy:       45.2 /  54.0 Wh
-  Cycle count:  142
-  Health:       92.3%
-  Technology:   Li-ion
+BAT0 ████████████░░░░░░░░ Discharging
+  Power:       5.5 W
+  Remaining:   5h27m
+  Capacity:    63 %
+  Energy:      30.1 / 48.0 Wh
+  Cycle count: 66
+  Health:      96.8 %
+  Technology:  Li-poly
 ```
 
 ## 📦 Installation

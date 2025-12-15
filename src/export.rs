@@ -1,4 +1,5 @@
-use crate::{db::Reading, format_timestamp};
+use crate::db::Reading;
+use crate::utils::format_timestamp;
 use std::io::{self, Write};
 
 pub fn write_csv(mut writer: impl Write, readings: &[Reading]) -> io::Result<()> {

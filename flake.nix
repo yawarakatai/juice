@@ -15,6 +15,9 @@
           version = "0.1.0";
           src = ./.;
           cargoLock.lockFile = ./Cargo.lock;
+
+          nativeBuildInputs = [ pkgs.pkg-config ];
+          buidlInputs = [ pkgs.sqlite ];
         };
 
         devShells.default = pkgs.mkShell {
@@ -24,6 +27,7 @@
             rust-analyzer
             clippy
             rustfmt
+            sqlite
           ];
         };
       });
